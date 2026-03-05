@@ -1,0 +1,119 @@
+import type { ReactNode } from 'react';
+import { useAuth } from '../../hooks/useAuth';
+import { useLocation, useNavigate } from 'react-router-dom';
+
+interface LayoutProps {
+  children: ReactNode;
+}
+
+export function Layout({ children }: LayoutProps) {
+  const { signOut, user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const isHome = location.pathname === '/';
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <header className="sticky top-0 z-50 bg-surface-950/80 backdrop-blur-xl border-b border-surface-800/50">
+        <div className="max-w-lg mx-auto px-4 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {!isHome && (
+              <button
+                onClick={() => navigate(-1)}
+                className="btn-ghost p-2 -ml-2"
+                aria-label="Wróć"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            )}
+            <button onClick={() => navigate('/')} className="flex items-center gap-2">
+              <span className="text-lg">🛒</span>
+              <span className="font-display font-semibold text-surface-100">Zakupy</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-surface-500 hidden sm:block">
+              {user?.email}
+            </span>
+            <button
+              onClick={signOut}
+              className="btn-ghost text-sm text-surface-400"
+            >
+              Wyloguj
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1">
+        {children}
+      </main>
+
+      <nav className="sticky bottom-0 z-50 bg-surface-950/90 backdrop-blur-xl border-t border-surface-800/50 sm:hidden" aria-label="Nawigacja główna">
+        <div className="flex items-center justify-around h-16 px-2">
+          <NavItem
+            icon={
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </svg>
+            }
+            label="Sklepy"
+            active={location.pathname === '/'}
+            onClick={() => navigate('/')}
+          />
+          <NavItem
+            icon={
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            }
+            label="Historia"
+            active={location.pathname === '/history'}
+            onClick={() => navigate('/history')}
+          />
+          <NavItem
+            icon={
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+            }
+            label="Szablony"
+            active={location.pathname === '/templates'}
+            onClick={() => navigate('/templates')}
+          />
+        </div>
+      </nav>
+    </div>
+  );
+}
+
+function NavItem({
+  icon,
+  label,
+  active,
+  onClick,
+}: {
+  icon: ReactNode;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex flex-col items-center gap-1 px-4 py-1 rounded-xl transition-colors ${
+        active
+          ? 'text-brand-400'
+          : 'text-surface-500 hover:text-surface-300'
+      }`}
+      aria-current={active ? 'page' : undefined}
+    >
+      {icon}
+      <span className="text-[10px] font-medium">{label}</span>
+    </button>
+  );
+}
