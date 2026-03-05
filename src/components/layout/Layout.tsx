@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../hooks/useTheme';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 interface LayoutProps {
@@ -8,6 +9,7 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const { signOut, user } = useAuth();
+  const { theme, toggle } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -15,7 +17,7 @@ export function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="sticky top-0 z-50 bg-surface-950/80 backdrop-blur-xl border-b border-surface-800/50">
+      <header className="sticky top-0 z-50 bg-white/80 dark:bg-surface-950/80 backdrop-blur-xl border-b border-surface-200/50 dark:border-surface-800/50">
         <div className="max-w-lg mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {!isHome && (
@@ -31,7 +33,7 @@ export function Layout({ children }: LayoutProps) {
             )}
             <button onClick={() => navigate('/')} className="flex items-center gap-2">
               <span className="text-lg">🛒</span>
-              <span className="font-display font-semibold text-surface-100">Zakupy</span>
+              <span className="font-display font-semibold text-surface-900 dark:text-surface-100">Zakupy</span>
             </button>
           </div>
 
@@ -40,8 +42,23 @@ export function Layout({ children }: LayoutProps) {
               {user?.email}
             </span>
             <button
+              onClick={toggle}
+              className="btn-ghost p-2"
+              aria-label={theme === 'dark' ? 'Włącz jasny motyw' : 'Włącz ciemny motyw'}
+            >
+              {theme === 'dark' ? (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              )}
+            </button>
+            <button
               onClick={signOut}
-              className="btn-ghost text-sm text-surface-400"
+              className="btn-ghost text-sm"
             >
               Wyloguj
             </button>
@@ -53,7 +70,7 @@ export function Layout({ children }: LayoutProps) {
         {children}
       </main>
 
-      <nav className="sticky bottom-0 z-50 bg-surface-950/90 backdrop-blur-xl border-t border-surface-800/50 sm:hidden" aria-label="Nawigacja główna">
+      <nav className="sticky bottom-0 z-50 bg-white/90 dark:bg-surface-950/90 backdrop-blur-xl border-t border-surface-200/50 dark:border-surface-800/50 sm:hidden" aria-label="Nawigacja główna">
         <div className="flex items-center justify-around h-16 px-2">
           <NavItem
             icon={
@@ -108,7 +125,7 @@ function NavItem({
       className={`flex flex-col items-center gap-1 px-4 py-1 rounded-xl transition-colors ${
         active
           ? 'text-brand-400'
-          : 'text-surface-500 hover:text-surface-300'
+          : 'text-surface-400 dark:text-surface-500 hover:text-surface-600 dark:hover:text-surface-300'
       }`}
       aria-current={active ? 'page' : undefined}
     >

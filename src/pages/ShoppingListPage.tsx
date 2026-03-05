@@ -4,6 +4,9 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import type { ShoppingList, ListItem, Product } from '../lib/database.types';
 import toast from 'react-hot-toast';
+import { ShoppingListSkeleton } from '../components/ui/Skeleton';
+import SwipeableRow from '../components/ui/SwipeableRow';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 export default function ShoppingListPage() {
   const { listId } = useParams<{ listId: string }>();
@@ -11,6 +14,7 @@ export default function ShoppingListPage() {
   const [items, setItems] = useState<ListItem[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -161,10 +165,7 @@ export default function ShoppingListPage() {
   };
 
   const completeList = async () => {
-    const unchecked = items.filter((i) => !i.is_checked);
-    if (unchecked.length > 0 && !confirm(`Masz ${unchecked.length} nieodchaczonych produktów. Zakończyć mimo to?`)) {
-      return;
-    }
+    setShowCompleteDialog(false);
 
     const { error } = await supabase
       .from('shopping_lists')
@@ -179,14 +180,16 @@ export default function ShoppingListPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="page-container flex items-center justify-center min-h-[50vh]">
-        <div className="animate-spin w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full" />
-      </div>
-    );
-  }
+  const handleComplete = () => {
+    const unchecked = items.filter((i) => !i.is_checked);
+    if (unchecked.length > 0) {
+      setShowCompleteDialog(true);
+    } else {
+      completeList();
+    }
+  };
 
+  if (loading) return <ShoppingListSkeleton />;
   if (!list) return null;
 
   const uncheckedItems = items.filter((i) => !i.is_checked);
@@ -197,17 +200,17 @@ export default function ShoppingListPage() {
   return (
     <div className="page-container pb-32">
       <div className="mb-6">
-        <h1 className="font-display text-xl font-bold text-surface-50">
+        <h1 className="font-display text-xl font-bold text-surface-900 dark:text-surface-50">
           {list.title || 'Lista zakupów'}
         </h1>
         <div className="flex items-center gap-3 mt-2">
-          <div className="flex-1 h-2 bg-surface-800 rounded-full overflow-hidden" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
+          <div className="flex-1 h-2 bg-surface-200 dark:bg-surface-800 rounded-full overflow-hidden" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
             <div
               className="h-full bg-brand-500 rounded-full transition-all duration-500"
               style={{ width: `${progress}%` }}
             />
           </div>
-          <span className="text-xs text-surface-400 tabular-nums">
+          <span className="text-xs text-surface-500 dark:text-surface-400 tabular-nums">
             {checkedItems.length}/{items.length}
           </span>
         </div>
@@ -229,16 +232,16 @@ export default function ShoppingListPage() {
             />
 
             {showSuggestions && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-surface-800 border border-surface-700 rounded-xl overflow-hidden z-10 shadow-xl">
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl overflow-hidden z-10 shadow-xl">
                 {suggestions.map((product) => (
                   <button
                     key={product.id}
                     type="button"
                     onMouseDown={() => selectSuggestion(product)}
-                    className="w-full text-left px-4 py-2.5 hover:bg-surface-700 text-surface-200 text-sm flex items-center justify-between transition-colors"
+                    className="w-full text-left px-4 py-2.5 hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-200 text-sm flex items-center justify-between transition-colors"
                   >
                     <span>{product.name}</span>
-                    <span className="text-xs text-surface-500">
+                    <span className="text-xs text-surface-400 dark:text-surface-500">
                       {product.category || product.default_unit}
                     </span>
                   </button>
@@ -278,31 +281,41 @@ export default function ShoppingListPage() {
       {uncheckedItems.length > 0 && (
         <section className="space-y-1 mb-6">
           {uncheckedItems.map((item) => (
-            <ItemRow
+            <SwipeableRow
               key={item.id}
-              item={item}
-              onToggle={() => toggleCheck(item)}
-              onDelete={() => deleteItem(item.id)}
-              readOnly={isReadOnly}
-            />
+              onSwipeLeft={() => deleteItem(item.id)}
+              disabled={isReadOnly}
+            >
+              <ItemRow
+                item={item}
+                onToggle={() => toggleCheck(item)}
+                onDelete={() => deleteItem(item.id)}
+                readOnly={isReadOnly}
+              />
+            </SwipeableRow>
           ))}
         </section>
       )}
 
       {checkedItems.length > 0 && (
         <section>
-          <h3 className="text-xs font-semibold text-surface-500 uppercase tracking-wider mb-2">
+          <h3 className="text-xs font-semibold text-surface-400 dark:text-surface-500 uppercase tracking-wider mb-2">
             Odchaczone ({checkedItems.length})
           </h3>
           <div className="space-y-1">
             {checkedItems.map((item) => (
-              <ItemRow
+              <SwipeableRow
                 key={item.id}
-                item={item}
-                onToggle={() => toggleCheck(item)}
-                onDelete={() => deleteItem(item.id)}
-                readOnly={isReadOnly}
-              />
+                onSwipeLeft={() => deleteItem(item.id)}
+                disabled={isReadOnly}
+              >
+                <ItemRow
+                  item={item}
+                  onToggle={() => toggleCheck(item)}
+                  onDelete={() => deleteItem(item.id)}
+                  readOnly={isReadOnly}
+                />
+              </SwipeableRow>
             ))}
           </div>
         </section>
@@ -311,7 +324,7 @@ export default function ShoppingListPage() {
       {items.length === 0 && (
         <div className="text-center py-12">
           <span className="text-4xl mb-4 block">📝</span>
-          <p className="text-surface-400">
+          <p className="text-surface-500 dark:text-surface-400">
             Lista jest pusta. Dodaj pierwszy produkt!
           </p>
         </div>
@@ -321,7 +334,7 @@ export default function ShoppingListPage() {
         <div className="fixed bottom-20 sm:bottom-6 left-0 right-0 px-4">
           <div className="max-w-lg mx-auto">
             <button
-              onClick={completeList}
+              onClick={handleComplete}
               className="btn-primary w-full bg-green-600 hover:bg-green-700 active:bg-green-800
                          flex items-center justify-center gap-2 shadow-lg shadow-green-900/30"
             >
@@ -333,6 +346,15 @@ export default function ShoppingListPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={showCompleteDialog}
+        title="Zakończ zakupy"
+        message={`Masz ${items.filter((i) => !i.is_checked).length} nieodchaczonych produktów. Zakończyć mimo to?`}
+        confirmLabel="Zakończ"
+        onConfirm={completeList}
+        onCancel={() => setShowCompleteDialog(false)}
+      />
     </div>
   );
 }
@@ -351,7 +373,9 @@ function ItemRow({
   return (
     <div
       className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group
-                  ${item.is_checked ? 'bg-surface-800/20' : 'bg-surface-800/40 hover:bg-surface-800/60'}`}
+                  ${item.is_checked
+                    ? 'bg-surface-100/50 dark:bg-surface-800/20'
+                    : 'bg-surface-100 dark:bg-surface-800/40 hover:bg-surface-200 dark:hover:bg-surface-800/60'}`}
     >
       <button
         onClick={onToggle}
@@ -359,7 +383,7 @@ function ItemRow({
         className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-all
                     ${item.is_checked
                       ? 'bg-brand-600 border-brand-600 animate-check'
-                      : 'border-surface-600 hover:border-brand-500'
+                      : 'border-surface-300 dark:border-surface-600 hover:border-brand-500'
                     }`}
         aria-label={item.is_checked ? `Odznacz ${item.name}` : `Zaznacz ${item.name}`}
       >
@@ -373,21 +397,21 @@ function ItemRow({
       <div className="flex-1 min-w-0">
         <span
           className={`text-sm transition-all ${
-            item.is_checked ? 'text-surface-500 line-through' : 'text-surface-100'
+            item.is_checked ? 'text-surface-400 dark:text-surface-500 line-through' : 'text-surface-800 dark:text-surface-100'
           }`}
         >
           {item.name}
         </span>
       </div>
 
-      <span className="text-xs text-surface-400 flex-shrink-0 tabular-nums">
+      <span className="text-xs text-surface-500 dark:text-surface-400 flex-shrink-0 tabular-nums">
         {item.quantity} {item.unit}
       </span>
 
       {!readOnly && (
         <button
           onClick={onDelete}
-          className="opacity-0 group-hover:opacity-100 text-surface-500 hover:text-red-400
+          className="opacity-0 group-hover:opacity-100 text-surface-400 dark:text-surface-500 hover:text-red-400
                      transition-all p-1 flex-shrink-0"
           aria-label={`Usuń ${item.name}`}
         >

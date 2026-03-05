@@ -4,12 +4,16 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import type { Store, ShoppingList } from '../lib/database.types';
 import toast from 'react-hot-toast';
+import { StorePageSkeleton } from '../components/ui/Skeleton';
+import SwipeableRow from '../components/ui/SwipeableRow';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 
 export default function StorePage() {
   const { storeId } = useParams<{ storeId: string }>();
   const [store, setStore] = useState<Store | null>(null);
   const [lists, setLists] = useState<ShoppingList[]>([]);
   const [loading, setLoading] = useState(true);
+  const [archiveTarget, setArchiveTarget] = useState<string | null>(null);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -57,6 +61,7 @@ export default function StorePage() {
   };
 
   const archiveList = async (listId: string) => {
+    setArchiveTarget(null);
     const { error } = await supabase
       .from('shopping_lists')
       .update({ status: 'archived' })
@@ -70,14 +75,7 @@ export default function StorePage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="page-container flex items-center justify-center min-h-[50vh]">
-        <div className="animate-spin w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full" />
-      </div>
-    );
-  }
-
+  if (loading) return <StorePageSkeleton />;
   if (!store) return null;
 
   const activeLists = lists.filter((l) => l.status === 'active');
@@ -93,10 +91,10 @@ export default function StorePage() {
           {store.icon}
         </div>
         <div>
-          <h1 className="font-display text-xl font-bold text-surface-50">
+          <h1 className="font-display text-xl font-bold text-surface-900 dark:text-surface-50">
             {store.name}
           </h1>
-          <p className="text-sm text-surface-400">
+          <p className="text-sm text-surface-500 dark:text-surface-400">
             {activeLists.length} {activeLists.length === 1 ? 'aktywna lista' : 'aktywnych list'}
           </p>
         </div>
@@ -111,18 +109,23 @@ export default function StorePage() {
 
       {activeLists.length > 0 && (
         <section className="mb-8">
-          <h2 className="text-sm font-semibold text-surface-400 uppercase tracking-wider mb-3">
+          <h2 className="text-sm font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-3">
             Aktywne
           </h2>
           <div className="space-y-2">
             {activeLists.map((list) => (
-              <ListCard
+              <SwipeableRow
                 key={list.id}
-                list={list}
-                storeColor={store.color}
-                onClick={() => navigate(`/list/${list.id}`)}
-                onArchive={() => archiveList(list.id)}
-              />
+                onSwipeLeft={() => setArchiveTarget(list.id)}
+                leftLabel="Archiwizuj"
+              >
+                <ListCard
+                  list={list}
+                  storeColor={store.color}
+                  onClick={() => navigate(`/list/${list.id}`)}
+                  onArchive={() => setArchiveTarget(list.id)}
+                />
+              </SwipeableRow>
             ))}
           </div>
         </section>
@@ -130,7 +133,7 @@ export default function StorePage() {
 
       {completedLists.length > 0 && (
         <section>
-          <h2 className="text-sm font-semibold text-surface-400 uppercase tracking-wider mb-3">
+          <h2 className="text-sm font-semibold text-surface-500 dark:text-surface-400 uppercase tracking-wider mb-3">
             Historia
           </h2>
           <div className="space-y-2">
@@ -146,6 +149,15 @@ export default function StorePage() {
           </div>
         </section>
       )}
+
+      <ConfirmDialog
+        open={!!archiveTarget}
+        title="Archiwizuj listę"
+        message="Przenieść tę listę do archiwum?"
+        confirmLabel="Archiwizuj"
+        onConfirm={() => archiveTarget && archiveList(archiveTarget)}
+        onCancel={() => setArchiveTarget(null)}
+      />
     </div>
   );
 }
@@ -174,7 +186,7 @@ function ListCard({
   return (
     <div
       className={`card p-4 flex items-center justify-between cursor-pointer
-                  hover:border-surface-600 transition-all active:scale-[0.99]
+                  hover:border-surface-300 dark:hover:border-surface-600 transition-all active:scale-[0.99]
                   ${dimmed ? 'opacity-60' : ''}`}
       onClick={onClick}
     >
@@ -184,10 +196,10 @@ function ListCard({
           style={{ backgroundColor: list.status === 'active' ? storeColor : '#475569' }}
         />
         <div>
-          <p className="text-surface-200 font-medium text-sm">
+          <p className="text-surface-700 dark:text-surface-200 font-medium text-sm">
             {list.title || `Lista z ${date}`}
           </p>
-          <p className="text-xs text-surface-500">{date}</p>
+          <p className="text-xs text-surface-400 dark:text-surface-500">{date}</p>
         </div>
       </div>
 

@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './hooks/useAuth';
+import { ThemeProvider, useTheme } from './hooks/useTheme';
 import { Layout } from './components/layout/Layout';
 import type { ReactNode } from 'react';
 
@@ -42,35 +43,47 @@ function AuthRoute() {
   );
 }
 
-const TOAST_STYLE = {
-  background: '#1e293b',
-  color: '#f1f5f9',
-  border: '1px solid #334155',
-  borderRadius: '12px',
-  fontSize: '14px',
-} as const;
+function ThemedToaster() {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
+  return (
+    <Toaster
+      position="top-center"
+      toastOptions={{
+        duration: 3000,
+        style: {
+          background: isDark ? '#1e293b' : '#ffffff',
+          color: isDark ? '#f1f5f9' : '#0f172a',
+          border: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+          borderRadius: '12px',
+          fontSize: '14px',
+        },
+      }}
+    />
+  );
+}
 
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <Suspense fallback={<LoadingSpinner />}>
-          <Routes>
-            <Route path="/auth" element={<AuthRoute />} />
-            <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-            <Route path="/store/:storeId" element={<ProtectedRoute><StorePage /></ProtectedRoute>} />
-            <Route path="/list/:listId" element={<ProtectedRoute><ShoppingListPage /></ProtectedRoute>} />
-            <Route path="/history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
-            <Route path="/templates" element={<ProtectedRoute><TemplatesPage /></ProtectedRoute>} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
+      <ThemeProvider>
+        <AuthProvider>
+          <Suspense fallback={<LoadingSpinner />}>
+            <Routes>
+              <Route path="/auth" element={<AuthRoute />} />
+              <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+              <Route path="/store/:storeId" element={<ProtectedRoute><StorePage /></ProtectedRoute>} />
+              <Route path="/list/:listId" element={<ProtectedRoute><ShoppingListPage /></ProtectedRoute>} />
+              <Route path="/history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
+              <Route path="/templates" element={<ProtectedRoute><TemplatesPage /></ProtectedRoute>} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
 
-        <Toaster
-          position="top-center"
-          toastOptions={{ duration: 3000, style: TOAST_STYLE }}
-        />
-      </AuthProvider>
+          <ThemedToaster />
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }

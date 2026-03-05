@@ -4,6 +4,10 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 import type { Store } from '../lib/database.types';
 import toast from 'react-hot-toast';
+import { DashboardSkeleton } from '../components/ui/Skeleton';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
+import ContextMenu from '../components/ui/ContextMenu';
+import InstallBanner from '../components/ui/InstallBanner';
 
 const STORE_COLORS = [
   '#ef4444', '#f97316', '#eab308', '#22c55e',
@@ -18,6 +22,7 @@ export default function DashboardPage() {
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -61,8 +66,10 @@ export default function DashboardPage() {
     }
   };
 
-  const deleteStore = async (id: string, name: string) => {
-    if (!confirm(`Usunąć sklep "${name}" i wszystkie jego listy?`)) return;
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const { id, name } = deleteTarget;
+    setDeleteTarget(null);
 
     const { error } = await supabase.from('stores').delete().eq('id', id);
     if (error) {
@@ -73,18 +80,14 @@ export default function DashboardPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="page-container flex items-center justify-center min-h-[50vh]">
-        <div className="animate-spin w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full" />
-      </div>
-    );
-  }
+  if (loading) return <DashboardSkeleton />;
 
   return (
     <div className="page-container">
+      <InstallBanner />
+
       <div className="flex items-center justify-between mb-6">
-        <h1 className="font-display text-xl font-bold text-surface-50">
+        <h1 className="font-display text-xl font-bold text-surface-900 dark:text-surface-50">
           Twoje sklepy
         </h1>
         <button
@@ -98,7 +101,7 @@ export default function DashboardPage() {
       {stores.length === 0 ? (
         <div className="card p-8 text-center">
           <span className="text-4xl mb-4 block">🏪</span>
-          <p className="text-surface-400 mb-4">
+          <p className="text-surface-500 dark:text-surface-400 mb-4">
             Nie masz jeszcze żadnych sklepów.
           </p>
           <button
@@ -111,13 +114,27 @@ export default function DashboardPage() {
       ) : (
         <div className="grid grid-cols-2 gap-3">
           {stores.map((store, i) => (
-            <StoreCard
+            <ContextMenu
               key={store.id}
-              store={store}
-              index={i}
-              onClick={() => navigate(`/store/${store.id}`)}
-              onDelete={() => deleteStore(store.id, store.name)}
-            />
+              items={[
+                {
+                  label: 'Otwórz',
+                  onClick: () => navigate(`/store/${store.id}`),
+                },
+                {
+                  label: 'Usuń sklep',
+                  danger: true,
+                  onClick: () => setDeleteTarget({ id: store.id, name: store.name }),
+                },
+              ]}
+            >
+              <StoreCard
+                store={store}
+                index={i}
+                onClick={() => navigate(`/store/${store.id}`)}
+                onDelete={() => setDeleteTarget({ id: store.id, name: store.name })}
+              />
+            </ContextMenu>
           ))}
         </div>
       )}
@@ -128,6 +145,16 @@ export default function DashboardPage() {
           onClose={() => setShowAddModal(false)}
         />
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Usuń sklep"
+        message={`Usunąć sklep "${deleteTarget?.name}" i wszystkie jego listy?`}
+        confirmLabel="Usuń"
+        danger
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }
@@ -145,7 +172,7 @@ function StoreCard({
 }) {
   return (
     <div
-      className="card p-4 cursor-pointer hover:border-surface-600 transition-all duration-200
+      className="card p-4 cursor-pointer hover:border-surface-300 dark:hover:border-surface-600 transition-all duration-200
                  active:scale-[0.97] animate-slide-up relative group"
       style={{ animationDelay: `${index * 50}ms` }}
       onClick={onClick}
@@ -156,7 +183,7 @@ function StoreCard({
           onDelete();
         }}
         className="absolute top-2 right-2 opacity-0 group-hover:opacity-100
-                   text-surface-500 hover:text-red-400 transition-all p-1"
+                   text-surface-400 dark:text-surface-500 hover:text-red-400 transition-all p-1"
         aria-label={`Usuń ${store.name}`}
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -170,10 +197,10 @@ function StoreCard({
       >
         {store.icon}
       </div>
-      <h3 className="font-display font-semibold text-surface-100 truncate">
+      <h3 className="font-display font-semibold text-surface-800 dark:text-surface-100 truncate">
         {store.name}
       </h3>
-      <p className="text-xs text-surface-500 mt-1">
+      <p className="text-xs text-surface-400 dark:text-surface-500 mt-1">
         Kliknij aby otworzyć
       </p>
     </div>
@@ -201,13 +228,13 @@ function AddStoreModal({
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center px-4 pb-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="card p-6 w-full max-w-sm relative animate-slide-up">
-        <h2 className="font-display text-lg font-semibold text-surface-100 mb-4">
+        <h2 className="font-display text-lg font-semibold text-surface-800 dark:text-surface-100 mb-4">
           Nowy sklep
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-surface-400 mb-1.5">
+            <label className="block text-sm font-medium text-surface-500 dark:text-surface-400 mb-1.5">
               Nazwa sklepu
             </label>
             <input
@@ -222,7 +249,7 @@ function AddStoreModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-surface-400 mb-1.5">
+            <label className="block text-sm font-medium text-surface-500 dark:text-surface-400 mb-1.5">
               Ikona
             </label>
             <div className="flex gap-2 flex-wrap">
@@ -234,7 +261,7 @@ function AddStoreModal({
                   className={`w-10 h-10 rounded-lg text-xl flex items-center justify-center transition-all ${
                     icon === ic
                       ? 'bg-brand-600/30 ring-2 ring-brand-500'
-                      : 'bg-surface-800 hover:bg-surface-700'
+                      : 'bg-surface-100 dark:bg-surface-800 hover:bg-surface-200 dark:hover:bg-surface-700'
                   }`}
                 >
                   {ic}
@@ -244,7 +271,7 @@ function AddStoreModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-surface-400 mb-1.5">
+            <label className="block text-sm font-medium text-surface-500 dark:text-surface-400 mb-1.5">
               Kolor
             </label>
             <div className="flex gap-2 flex-wrap">
@@ -254,7 +281,7 @@ function AddStoreModal({
                   type="button"
                   onClick={() => setColor(c)}
                   className={`w-8 h-8 rounded-full transition-all ${
-                    color === c ? 'ring-2 ring-offset-2 ring-offset-surface-800' : ''
+                    color === c ? 'ring-2 ring-offset-2 ring-offset-white dark:ring-offset-surface-800' : ''
                   }`}
                   style={{ backgroundColor: c }}
                 />

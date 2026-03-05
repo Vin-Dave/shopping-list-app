@@ -72,22 +72,22 @@ export default function AuthPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-600/20 border border-brand-500/30 mb-4">
             <span className="text-3xl">🛒</span>
           </div>
-          <h1 className="font-display text-2xl font-bold text-surface-50">
+          <h1 className="font-display text-2xl font-bold text-surface-900 dark:text-surface-50">
             Lista Zakupów
           </h1>
-          <p className="text-surface-400 mt-1 text-sm">
+          <p className="text-surface-500 dark:text-surface-400 mt-1 text-sm">
             Twoja inteligentna lista zakupów
           </p>
         </div>
 
         <div className="card p-6">
-          <h2 className="font-display text-lg font-semibold text-surface-100 mb-6">
+          <h2 className="font-display text-lg font-semibold text-surface-800 dark:text-surface-100 mb-6">
             {TITLES[mode]}
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-surface-400 mb-1.5">
+              <label htmlFor="email" className="block text-sm font-medium text-surface-500 dark:text-surface-400 mb-1.5">
                 Email
               </label>
               <input
@@ -104,7 +104,7 @@ export default function AuthPage() {
 
             {mode !== 'reset' && (
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-surface-400 mb-1.5">
+                <label htmlFor="password" className="block text-sm font-medium text-surface-500 dark:text-surface-400 mb-1.5">
                   Hasło
                 </label>
                 <input
@@ -123,7 +123,7 @@ export default function AuthPage() {
 
             {mode === 'register' && (
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-surface-400 mb-1.5">
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-surface-500 dark:text-surface-400 mb-1.5">
                   Potwierdź hasło
                 </label>
                 <input

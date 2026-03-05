@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { ShoppingList } from '../lib/database.types';
+import { HistorySkeleton } from '../components/ui/Skeleton';
 
 interface HistoryListItem extends ShoppingList {
   store_name?: string;
@@ -41,28 +42,22 @@ export default function HistoryPage() {
     setLoading(false);
   };
 
-  if (loading) {
-    return (
-      <div className="page-container flex items-center justify-center min-h-[50vh]">
-        <div className="animate-spin w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full" />
-      </div>
-    );
-  }
+  if (loading) return <HistorySkeleton />;
 
   return (
     <div className="page-container">
-      <h1 className="font-display text-xl font-bold text-surface-50 mb-6">
+      <h1 className="font-display text-xl font-bold text-surface-900 dark:text-surface-50 mb-6">
         Historia zakupów
       </h1>
 
       {lists.length === 0 ? (
         <div className="card p-8 text-center">
           <span className="text-4xl mb-4 block">📋</span>
-          <p className="text-surface-400">Brak zakończonych list</p>
+          <p className="text-surface-500 dark:text-surface-400">Brak zakończonych list</p>
         </div>
       ) : (
         <div className="space-y-2">
-          {lists.map((list) => {
+          {lists.map((list, i) => {
             const date = list.completed_at
               ? new Date(list.completed_at).toLocaleDateString('pl-PL', {
                   day: 'numeric',
@@ -76,14 +71,16 @@ export default function HistoryPage() {
                 key={list.id}
                 onClick={() => navigate(`/list/${list.id}`)}
                 className="card p-4 flex items-center gap-3 cursor-pointer
-                           hover:border-surface-600 transition-all active:scale-[0.99]"
+                           hover:border-surface-300 dark:hover:border-surface-600 transition-all active:scale-[0.99]
+                           animate-slide-up"
+                style={{ animationDelay: `${i * 30}ms` }}
               >
                 <span className="text-xl">{list.store_icon || '🏪'}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-surface-200 font-medium text-sm truncate">
+                  <p className="text-surface-700 dark:text-surface-200 font-medium text-sm truncate">
                     {list.store_name || 'Sklep'} — {list.title || 'Lista'}
                   </p>
-                  <p className="text-xs text-surface-500">{date}</p>
+                  <p className="text-xs text-surface-400 dark:text-surface-500">{date}</p>
                 </div>
               </div>
             );
