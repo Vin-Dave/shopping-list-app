@@ -1,12 +1,17 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
+import { lookupBarcode } from '../lib/openFoodFacts';
+import { guessCategory, getCategoryById, CATEGORIES } from '../lib/categories';
 import type { ShoppingList, ListItem, Product } from '../lib/database.types';
 import toast from 'react-hot-toast';
 import { ShoppingListSkeleton } from '../components/ui/Skeleton';
 import SwipeableRow from '../components/ui/SwipeableRow';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import GroupedItems from '../components/ui/GroupedItems';
+
+const BarcodeScanner = lazy(() => import('../components/ui/BarcodeScanner'));
 
 export default function ShoppingListPage() {
   const { listId } = useParams<{ listId: string }>();
@@ -15,6 +20,8 @@ export default function ShoppingListPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [scanLoading, setScanLoading] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -79,13 +86,7 @@ export default function ShoppingListPage() {
     inputRef.current?.focus();
   };
 
-  const addItem = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newItemName.trim()) return;
-
-    const name = newItemName.trim();
-    const quantity = parseFloat(newItemQty) || 1;
-
+  const addItemByName = async (name: string, quantity: number, unit: string) => {
     let productId: string | null = null;
     const existingProduct = products.find(
       (p) => p.name.toLowerCase() === name.toLowerCase()
@@ -102,7 +103,7 @@ export default function ShoppingListPage() {
         .from('products')
         .insert({
           name,
-          default_unit: newItemUnit,
+          default_unit: unit,
           usage_count: 1,
           user_id: user!.id,
         })
@@ -111,7 +112,7 @@ export default function ShoppingListPage() {
 
       if (newProduct) {
         productId = newProduct.id;
-        setProducts([newProduct, ...products]);
+        setProducts((prev) => [newProduct, ...prev]);
       }
     }
 
@@ -122,7 +123,7 @@ export default function ShoppingListPage() {
         product_id: productId,
         name,
         quantity,
-        unit: newItemUnit,
+        unit,
         is_checked: false,
         position: items.length,
       })
@@ -132,12 +133,49 @@ export default function ShoppingListPage() {
     if (error) {
       toast.error('Nie udało się dodać produktu');
     } else {
-      setItems([...items, data]);
+      setItems((prev) => [...prev, data]);
+    }
+    return !error;
+  };
+
+  const addItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newItemName.trim()) return;
+
+    const ok = await addItemByName(
+      newItemName.trim(),
+      parseFloat(newItemQty) || 1,
+      newItemUnit
+    );
+
+    if (ok) {
       setNewItemName('');
       setNewItemQty('1');
       setNewItemUnit('szt');
       inputRef.current?.focus();
     }
+  };
+
+  const handleBarcodeScan = async (barcode: string) => {
+    setShowScanner(false);
+    setScanLoading(true);
+
+    const productInfo = await lookupBarcode(barcode);
+
+    if (productInfo) {
+      const displayName = productInfo.brand
+        ? `${productInfo.name} (${productInfo.brand})`
+        : productInfo.name;
+
+      await addItemByName(displayName, 1, productInfo.unit);
+      toast.success(`Dodano: ${productInfo.name}`);
+    } else {
+      toast.error(`Nie znaleziono produktu (kod: ${barcode})`);
+      setNewItemName(barcode);
+      inputRef.current?.focus();
+    }
+
+    setScanLoading(false);
   };
 
   const toggleCheck = async (item: ListItem) => {
@@ -216,38 +254,79 @@ export default function ShoppingListPage() {
         </div>
       </div>
 
+      {!isReadOnly && products.length > 0 && items.length === 0 && (
+        <div className="mb-4">
+          <p className="text-xs font-semibold text-surface-400 dark:text-surface-500 uppercase tracking-wider mb-2">
+            Szybkie dodawanie
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {products
+              .filter((p) => !items.some((i) => i.name.toLowerCase() === p.name.toLowerCase()))
+              .slice(0, 8)
+              .map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => addItemByName(p.name, 1, p.default_unit)}
+                  className="text-xs px-3 py-1.5 rounded-full bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-300 hover:bg-brand-600/20 hover:text-brand-400 transition-colors"
+                >
+                  + {p.name}
+                </button>
+              ))}
+          </div>
+        </div>
+      )}
+
       {!isReadOnly && (
         <form onSubmit={addItem} className="card p-4 mb-6">
-          <div className="relative">
-            <input
-              ref={inputRef}
-              type="text"
-              value={newItemName}
-              onChange={(e) => handleNameChange(e.target.value)}
-              onFocus={() => newItemName.length >= 2 && suggestions.length > 0 && setShowSuggestions(true)}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-              className="input-field pr-20"
-              placeholder="Dodaj produkt..."
-              autoComplete="off"
-            />
+          <div className="relative flex gap-2">
+            <div className="relative flex-1">
+              <input
+                ref={inputRef}
+                type="text"
+                value={newItemName}
+                onChange={(e) => handleNameChange(e.target.value)}
+                onFocus={() => newItemName.length >= 2 && suggestions.length > 0 && setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                className="input-field"
+                placeholder="Dodaj produkt..."
+                autoComplete="off"
+              />
 
-            {showSuggestions && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl overflow-hidden z-10 shadow-xl">
-                {suggestions.map((product) => (
-                  <button
-                    key={product.id}
-                    type="button"
-                    onMouseDown={() => selectSuggestion(product)}
-                    className="w-full text-left px-4 py-2.5 hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-200 text-sm flex items-center justify-between transition-colors"
-                  >
-                    <span>{product.name}</span>
-                    <span className="text-xs text-surface-400 dark:text-surface-500">
-                      {product.category || product.default_unit}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
+              {showSuggestions && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700 rounded-xl overflow-hidden z-10 shadow-xl">
+                  {suggestions.map((product) => (
+                    <button
+                      key={product.id}
+                      type="button"
+                      onMouseDown={() => selectSuggestion(product)}
+                      className="w-full text-left px-4 py-2.5 hover:bg-surface-100 dark:hover:bg-surface-700 text-surface-700 dark:text-surface-200 text-sm flex items-center justify-between transition-colors"
+                    >
+                      <span>{product.name}</span>
+                      <span className="text-xs text-surface-400 dark:text-surface-500">
+                        {product.category || product.default_unit}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowScanner(true)}
+              disabled={scanLoading}
+              className="btn-secondary p-3 flex-shrink-0"
+              aria-label="Skanuj kod kreskowy"
+            >
+              {scanLoading ? (
+                <div className="animate-spin w-5 h-5 border-2 border-brand-500 border-t-transparent rounded-full" />
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7V5a2 2 0 012-2h2m10 0h2a2 2 0 012 2v2m0 10v2a2 2 0 01-2 2h-2M5 21H3a2 2 0 01-2-2v-2M7 12h10M7 8h2m6 0h2M7 16h2m6 0h2" />
+                </svg>
+              )}
+            </button>
           </div>
 
           <div className="flex gap-2 mt-3">
@@ -279,21 +358,24 @@ export default function ShoppingListPage() {
       )}
 
       {uncheckedItems.length > 0 && (
-        <section className="space-y-1 mb-6">
-          {uncheckedItems.map((item) => (
-            <SwipeableRow
-              key={item.id}
-              onSwipeLeft={() => deleteItem(item.id)}
-              disabled={isReadOnly}
-            >
-              <ItemRow
-                item={item}
-                onToggle={() => toggleCheck(item)}
-                onDelete={() => deleteItem(item.id)}
-                readOnly={isReadOnly}
-              />
-            </SwipeableRow>
-          ))}
+        <section className="mb-6">
+          <GroupedItems
+            items={uncheckedItems}
+            renderItem={(item) => (
+              <SwipeableRow
+                key={item.id}
+                onSwipeLeft={() => deleteItem(item.id)}
+                disabled={isReadOnly}
+              >
+                <ItemRow
+                  item={item}
+                  onToggle={() => toggleCheck(item)}
+                  onDelete={() => deleteItem(item.id)}
+                  readOnly={isReadOnly}
+                />
+              </SwipeableRow>
+            )}
+          />
         </section>
       )}
 
@@ -345,6 +427,15 @@ export default function ShoppingListPage() {
             </button>
           </div>
         </div>
+      )}
+
+      {showScanner && (
+        <Suspense fallback={null}>
+          <BarcodeScanner
+            onScan={handleBarcodeScan}
+            onClose={() => setShowScanner(false)}
+          />
+        </Suspense>
       )}
 
       <ConfirmDialog

@@ -12,6 +12,7 @@ const StorePage = lazy(() => import('./pages/StorePage'));
 const ShoppingListPage = lazy(() => import('./pages/ShoppingListPage'));
 const HistoryPage = lazy(() => import('./pages/HistoryPage'));
 const TemplatesPage = lazy(() => import('./pages/TemplatesPage'));
+const StatsPage = lazy(() => import('./pages/StatsPage'));
 
 function LoadingSpinner() {
   return (
@@ -77,6 +78,7 @@ export default function App() {
               <Route path="/list/:listId" element={<ProtectedRoute><ShoppingListPage /></ProtectedRoute>} />
               <Route path="/history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
               <Route path="/templates" element={<ProtectedRoute><TemplatesPage /></ProtectedRoute>} />
+              <Route path="/stats" element={<ProtectedRoute><StatsPage /></ProtectedRoute>} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
