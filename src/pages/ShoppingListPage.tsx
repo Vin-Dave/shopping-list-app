@@ -227,6 +227,20 @@ export default function ShoppingListPage() {
     }
   };
 
+  const restoreList = async () => {
+    const { error } = await supabase
+      .from('shopping_lists')
+      .update({ status: 'active', completed_at: null })
+      .eq('id', listId!);
+
+    if (error) {
+      toast.error('Nie udalo sie przywrocic listy');
+    } else {
+      setList({ ...list!, status: 'active', completed_at: null });
+      toast.success('Lista przywrocona — mozesz kontynuowac zakupy');
+    }
+  };
+
   if (loading) return <ShoppingListSkeleton />;
   if (!list) return null;
 
@@ -237,9 +251,31 @@ export default function ShoppingListPage() {
 
   return (
     <div className="page-container pb-32">
+      {isReadOnly && (
+        <div className="card p-4 mb-4 flex items-center justify-between bg-surface-100 dark:bg-surface-800/60 border-surface-200 dark:border-surface-700">
+          <div className="flex items-center gap-2 min-w-0">
+            <svg className="w-5 h-5 text-surface-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            <span className="text-sm text-surface-500 dark:text-surface-400">
+              Lista {list.status === 'completed' ? 'zakonczona' : 'archiwalna'} — tylko podglad
+            </span>
+          </div>
+          <button
+            onClick={restoreList}
+            className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1.5 flex-shrink-0 ml-3"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a5 5 0 015 5v2M3 10l4-4m-4 4l4 4" />
+            </svg>
+            Przywroc
+          </button>
+        </div>
+      )}
+
       <div className="mb-6">
         <h1 className="font-display text-xl font-bold text-surface-900 dark:text-surface-50">
-          {list.title || 'Lista zakupów'}
+          {list.title || 'Lista zakupow'}
         </h1>
         <div className="flex items-center gap-3 mt-2">
           <div className="flex-1 h-2 bg-surface-200 dark:bg-surface-800 rounded-full overflow-hidden" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
